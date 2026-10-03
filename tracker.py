@@ -1,61 +1,86 @@
-from datetime import datetime
-from email.mime.text import MIMEText
+import os
 import smtplib
+from email.mime.text import MIMEText
 from flask import Flask, redirect, request
 import requests
 
 app = Flask(__name__)
 
-# Cloud hosting ke liye hardcoded credentials
-EMAIL_ADDRESS = 'jawadansari203@gmail.com'  
-EMAIL_PASSWORD = 'tlxp gxic orth xtns' 
-RECEIVER_EMAIL = EMAIL_ADDRESS
 
-def send_email_notification(details):
-    try:
-        msg = MIMEText(details)
-        msg['Subject'] = '🚨 New Link Click Alert!'
-        msg['From'] = EMAIL_ADDRESS
-        msg['To'] = RECEIVER_EMAIL
+def send_email(details):
+  try:
+    sender_email = "jawadansari203@gmail.com"
+    receiver_email ="jawadansari203@gmail.com"
+    password ="anyx pdwm dtqe difg"
 
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()
-            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_ADDRESS, RECEIVER_EMAIL, msg.as_string())
-            print('Email notification successfully bhej di gayi')
-    except Exception as e:
-        print('Email error:', e)
+    if not sender_email or not password:
+      print("Email credentials missing")
+      return
 
-@app.route('/go')
+    msg_content = f"""
+New Link Clicked!
+
+IP Address: {details.get('ip')}
+Location: {details.get('city')}, {details.get('region')}, {details.get('country')}
+ISP: {details.get('org')}
+User-Agent: {details.get('user_agent')}
+Target URL: {details.get('target_url')}
+"""
+
+  
+    msg = MIMEText(msg_content)
+    msg["Subject"] = "🚨 New Link Tracker Alert!"
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
+
+    # Using port 587 with TLS (better compatibility on cloud servers)
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+      server.starttls()
+      server.login(sender_email, password)
+      server.sendmail(sender_email, receiver_email, msg.as_string())
+  except Exception as e:
+    print("Email sending failed, but redirecting anyway:", e)
+
+
+@app.route("/")
+def home():
+  return "Link Tracker is Live and Running!"
+
+
+@app.route("/go")
 def track_and_redirect():
-    target_url = request.args.get('url')
-    if not target_url:
-        return "Error: No target URL provided.", 400
+  target_url = request.args.get("url", "https://www.google.com")
 
-    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
-    user_agent = request.headers.get('User-Agent')
-    time_clicked = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  if request.headers.get("X-Forwarded-For"):
+    ip = request.headers.get("X-Forwarded-For").split(",")[0].strip()
+  else:
+    ip = request.remote_addr
 
-    geo_info = "Location not found"
-    try:
-        response = requests.get(f"http://ip-api.com/json/{ip_address}").json()
-        if response['status'] == 'success':
-            geo_info = f"{response['city']}, {response['country']} (ISP: {response['isp']})"
-    except:
-        pass
+  user_agent = request.headers.get("User-Agent")
 
-    details = f"""
-    New click detected!
+  geo_data = {}
+  try:
+    if ip and ip != "127.0.0.1":
+      res = requests.get(f"https://ipapi.co/{ip}/json/", timeout=3)
+      geo_data = res.json()
+  except Exception:
+    pass
 
-    Time: {time_clicked}
-    IP Address: {ip_address}
-    Location: {geo_info}
-    User Agent: {user_agent}
-    Target URL: {target_url}
-    """
+  details = {
+      "ip": ip,
+      "city": geo_data.get("city", "Unknown"),
+      "region": geo_data.get("region", "Unknown"),
+      "country": geo_data.get("country_name", "Unknown"),
+      "org": geo_data.get("org", "Unknown"),
+      "user_agent": user_agent,
+      "target_url": target_url,
+  }
 
-    send_email_notification(details)
-    return redirect(target_url)
+  # Call email function safely so it never crashes the redirect
+  send_email(details)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+  return redirect(target_url)
+
+
+if __name__ == "__main__":
+  app.run(host="0.0.0.0", port=10000)
