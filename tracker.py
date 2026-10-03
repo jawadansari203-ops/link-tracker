@@ -55,7 +55,11 @@ Target URL: {target_url}
 """
 
     send_email_notification(details)
+    
     return redirect(target_url)
 
 if __name__ == '__main__':
     app.run(debug=True)
+@app.route('/')
+def home():
+    return "Link Tracker is Live!"    
