@@ -45,14 +45,14 @@ def track_and_redirect():
         pass
 
     details = f"""
-    New click detected!
+New click detected!
 
-    Time: {time_clicked}
-    IP Address: {ip_address}
-    Location: {geo_info}
-    User Agent: {user_agent}
-    Target URL: {target_url}
-    """
+Time: {time_clicked}
+IP Address: {ip_address}
+Location: {geo_info}
+User Agent: {user_agent}
+Target URL: {target_url}
+"""
 
     send_email_notification(details)
     return redirect(target_url)
