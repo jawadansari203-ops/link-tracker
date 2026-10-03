@@ -40,7 +40,7 @@ def home():
 # 2. Tracking Route
 @app.route("/go")
 def track_and_redirect():
-  target_url = request.args.get("url")
+  target_url = request.args.get("url", "https://www.google.com")
   if not target_url:
     return "Error: No target URL provided.", 400
 
